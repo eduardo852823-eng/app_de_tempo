@@ -86,6 +86,15 @@
     return count;
   }
 
+  // calcula o valor da hora de um mês específico, usando uma configuração dada
+  function hourlyRateForMonth(monthKey, cfg){
+    const [y,m] = monthKey.split("-").map(Number);
+    const workDaysSet = new Set(cfg.workDays || []);
+    const workDaysInMonth = countWorkDaysInMonth(y, m-1, workDaysSet);
+    const monthGoalHours = workDaysInMonth * (cfg.hoursPerDay || 0);
+    return monthGoalHours > 0 ? (cfg.salary || 0) / monthGoalHours : 0;
+  }
+
   /* ---------------- TEMA ---------------- */
   const THEME_KEY = "ponto_theme_v1";
   const themeToggle = document.getElementById("theme-toggle");
@@ -271,7 +280,9 @@
       // finalizar e salvar
       const elapsedSeconds = Math.floor((Date.now() - startTimestamp)/1000);
       if(elapsedSeconds > 0){
-        records.push({ date: todayISO(), seconds: elapsedSeconds });
+        const dateISO = todayISO();
+        const rate = hourlyRateForMonth(monthKeyOf(dateISO), config);
+        records.push({ date: dateISO, seconds: elapsedSeconds, rate });
         saveRecords(records);
       }
       startTimestamp = null;
@@ -303,6 +314,21 @@
     return total;
   }
 
+  // soma os ganhos de um mês usando a taxa travada de cada registro
+  // (registros antigos sem taxa salva usam a taxa atual como aproximação)
+  function earnedInMonth(monthKey, cfg, runningElapsedSeconds){
+    let total = records
+      .filter(r => monthKeyOf(r.date) === monthKey)
+      .reduce((sum, r) => {
+        const rate = (typeof r.rate === "number") ? r.rate : hourlyRateForMonth(monthKey, cfg);
+        return sum + (r.seconds/3600) * rate;
+      }, 0);
+    if(runningElapsedSeconds){
+      total += (runningElapsedSeconds/3600) * hourlyRateForMonth(monthKey, cfg);
+    }
+    return total;
+  }
+
   function updateEarningsPanel(runningElapsedSeconds){
     const now = new Date();
     const monthKey = currentMonthKey();
@@ -312,13 +338,13 @@
     const workDaysSet = new Set(config.workDays || []);
     const workDaysInMonth = countWorkDaysInMonth(now.getFullYear(), now.getMonth(), workDaysSet);
     const monthGoalHours = workDaysInMonth * (config.hoursPerDay || 0);
-    const hourlyRate = monthGoalHours > 0 ? (config.salary || 0) / monthGoalHours : 0;
-    const earned = hourlyRate * hoursThisMonth;
+    const currentRate = hourlyRateForMonth(monthKey, config);
+    const earned = earnedInMonth(monthKey, config, runningElapsedSeconds);
     const progressPct = monthGoalHours > 0 ? Math.min(100, (hoursThisMonth/monthGoalHours)*100) : 0;
 
     statHours.textContent = formatHoursMinutes(secondsThisMonth);
     statMoney.textContent = formatMoney(earned);
-    statRate.textContent = formatMoney(hourlyRate);
+    statRate.textContent = formatMoney(currentRate);
     progressFill.style.width = `${progressPct}%`;
     progressCaption.textContent = monthGoalHours > 0
       ? `${progressPct.toFixed(0)}% do mês trabalhado`
@@ -444,12 +470,7 @@
     const days = Object.keys(byDay).sort().reverse();
 
     const totalSeconds = monthRecords.reduce((s,r)=>s+r.seconds,0);
-    const [y,m] = monthKey.split("-").map(Number);
-    const workDaysSet = new Set(config.workDays || []);
-    const workDaysInMonth = countWorkDaysInMonth(y, m-1, workDaysSet);
-    const monthGoalHours = workDaysInMonth * (config.hoursPerDay || 0);
-    const hourlyRate = monthGoalHours > 0 ? (config.salary || 0) / monthGoalHours : 0;
-    const earned = hourlyRate * (totalSeconds/3600);
+    const earned = earnedInMonth(monthKey, config);
 
     monthSummary.innerHTML = `
       <div class="msum-item">
