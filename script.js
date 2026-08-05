@@ -31,8 +31,23 @@
     localStorage.setItem(RECORDS_KEY, JSON.stringify(records));
   }
 
+  const PROFILE_KEY = "ponto_profile_v1";
+  function loadProfile(){
+    try{
+      const raw = localStorage.getItem(PROFILE_KEY);
+      if(!raw) return { name: "", photo: "" };
+      return JSON.parse(raw);
+    }catch(e){
+      return { name: "", photo: "" };
+    }
+  }
+  function saveProfile(p){
+    localStorage.setItem(PROFILE_KEY, JSON.stringify(p));
+  }
+
   let config = loadConfig();
   let records = loadRecords();
+  let profile = loadProfile();
 
   /* ---------------- HELPERS ---------------- */
   function pad(n){ return String(n).padStart(2,"0"); }
@@ -83,6 +98,52 @@
       if(btn.dataset.tab === "historico") renderHistory();
       if(btn.dataset.tab === "config") renderConfigForm();
     });
+  });
+
+  /* ---------------- PERFIL ---------------- */
+  const inputName = document.getElementById("input-name");
+  const profilePhotoBtn = document.getElementById("profile-photo-btn");
+  const profilePhotoImg = document.getElementById("profile-photo-img");
+  const profilePhotoPlaceholder = document.getElementById("profile-photo-placeholder");
+  const profilePhotoInput = document.getElementById("profile-photo-input");
+  const brandUserPhoto = document.getElementById("brand-user-photo");
+  const brandUserName = document.getElementById("brand-user-name");
+
+  function renderProfile(){
+    inputName.value = profile.name || "";
+
+    if(profile.photo){
+      profilePhotoImg.src = profile.photo;
+      profilePhotoImg.classList.remove("hidden");
+      profilePhotoPlaceholder.classList.add("hidden");
+      brandUserPhoto.src = profile.photo;
+      brandUserPhoto.classList.remove("hidden");
+    } else {
+      profilePhotoImg.classList.add("hidden");
+      profilePhotoPlaceholder.classList.remove("hidden");
+      brandUserPhoto.classList.add("hidden");
+    }
+    brandUserName.textContent = profile.name || "";
+  }
+
+  profilePhotoBtn.addEventListener("click", () => profilePhotoInput.click());
+
+  profilePhotoInput.addEventListener("change", () => {
+    const file = profilePhotoInput.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      profile.photo = reader.result;
+      saveProfile(profile);
+      renderProfile();
+    };
+    reader.readAsDataURL(file);
+  });
+
+  inputName.addEventListener("input", () => {
+    profile.name = inputName.value;
+    saveProfile(profile);
+    brandUserName.textContent = profile.name || "";
   });
 
   /* ---------------- CONFIG SCREEN ---------------- */
@@ -395,6 +456,7 @@
   }
 
   /* ---------------- INIT ---------------- */
+  renderProfile();
   renderConfigForm();
   updateEarningsPanel();
   restoreRunningTimer();
