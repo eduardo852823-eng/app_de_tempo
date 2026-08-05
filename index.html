@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ponto — Controle de Horas</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="flash-overlay"></div>
+
+<div class="app">
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">●</span>
+      <span class="brand-name">PONTO</span>
+    </div>
+    <nav class="tabs">
+      <button class="tab-btn active" data-tab="timer">Trabalhar</button>
+      <button class="tab-btn" data-tab="historico">Histórico</button>
+      <button class="tab-btn" data-tab="config">Configurar</button>
+    </nav>
+  </header>
+
+  <!-- TELA: TIMER -->
+  <main class="screen active" id="screen-timer">
+
+    <section class="clock-card">
+      <div class="clock-label" id="clock-status">Pronto para começar</div>
+      <div class="clock-display" id="clock-display">00:00:00</div>
+      <button class="clock-btn" id="btn-toggle">
+        <span id="btn-toggle-label">Iniciar</span>
+      </button>
+    </section>
+
+    <section class="panel earnings-panel">
+      <div class="panel-title">Ganhos do mês</div>
+      <div class="earnings-grid">
+        <div class="earnings-item">
+          <span class="earnings-value" id="stat-hours">0h 00m</span>
+          <span class="earnings-tag">horas acumuladas</span>
+        </div>
+        <div class="earnings-item highlight">
+          <span class="earnings-value" id="stat-money">R$ 0,00</span>
+          <span class="earnings-tag">já garantido</span>
+        </div>
+        <div class="earnings-item">
+          <span class="earnings-value" id="stat-rate">R$ 0,00</span>
+          <span class="earnings-tag">valor da hora</span>
+        </div>
+      </div>
+      <div class="progress-track">
+        <div class="progress-fill" id="progress-fill"></div>
+      </div>
+      <div class="progress-caption" id="progress-caption">0% do mês trabalhado</div>
+    </section>
+
+    <section class="panel break-panel">
+      <div class="panel-title">Intervalo</div>
+      <div class="break-row" id="break-idle">
+        <input type="number" id="break-minutes" placeholder="Minutos" min="1" value="15">
+        <button class="btn-secondary" id="btn-break-start">Iniciar intervalo</button>
+      </div>
+      <div class="break-row hidden" id="break-active">
+        <div class="break-countdown" id="break-countdown">15:00</div>
+        <button class="btn-danger" id="btn-break-cancel">Cancelar</button>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- TELA: HISTÓRICO -->
+  <main class="screen" id="screen-historico">
+    <section class="panel">
+      <div class="panel-title-row">
+        <div class="panel-title">Histórico</div>
+        <select id="month-select"></select>
+      </div>
+      <div class="month-summary" id="month-summary"></div>
+      <div class="history-list" id="history-list"></div>
+    </section>
+  </main>
+
+  <!-- TELA: CONFIG -->
+  <main class="screen" id="screen-config">
+    <section class="panel">
+      <div class="panel-title">Salário e jornada</div>
+
+      <label class="field-label" for="input-salary">Salário mensal (R$)</label>
+      <input type="number" id="input-salary" placeholder="Ex: 1500" min="0" step="0.01">
+
+      <label class="field-label" for="input-hours-day">Horas por dia de trabalho</label>
+      <input type="number" id="input-hours-day" placeholder="Ex: 8" min="0" step="0.5">
+
+      <label class="field-label">Dias da semana que trabalha</label>
+      <div class="weekday-grid" id="weekday-grid">
+        <button class="weekday-btn" data-day="0">D</button>
+        <button class="weekday-btn" data-day="1">S</button>
+        <button class="weekday-btn" data-day="2">T</button>
+        <button class="weekday-btn" data-day="3">Q</button>
+        <button class="weekday-btn" data-day="4">Q</button>
+        <button class="weekday-btn" data-day="5">S</button>
+        <button class="weekday-btn" data-day="6">S</button>
+      </div>
+
+      <button class="btn-primary" id="btn-save-config">Salvar configuração</button>
+      <div class="save-confirm hidden" id="save-confirm">Configuração salva ✓</div>
+    </section>
+  </main>
+
+</div>
+
+<audio id="alarm-sound" preload="auto"></audio>
+
+<script src="script.js"></script>
+</body>
+</html>
