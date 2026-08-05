@@ -23,8 +23,9 @@
 
   <header class="topbar">
     <div class="brand">
-      <span class="brand-mark">●</span>
+      <button class="brand-mark" id="brand-mark-btn" type="button" aria-label="Ponto">●</button>
       <span class="brand-name">PONTO</span>
+      <span class="brand-version hidden" id="brand-version">v1.0</span>
       <span class="brand-user" id="brand-user">
         <img id="brand-user-photo" class="hidden" alt="">
         <span id="brand-user-name"></span>
@@ -146,6 +147,12 @@
       </div>
       <input type="file" id="import-file-input" accept="application/json" class="hidden">
       <div class="save-confirm hidden" id="import-confirm">Backup restaurado ✓</div>
+    </section>
+
+    <section class="panel danger-panel">
+      <div class="panel-title">Zona de risco</div>
+      <p class="backup-hint">Isso apaga perfil, configuração e todo o histórico de horas deste dispositivo. Não tem como desfazer — exporte um backup antes, se quiser guardar.</p>
+      <button class="btn-danger btn-danger-full" id="btn-reset-all">Apagar todos os dados</button>
     </section>
   </main>
 

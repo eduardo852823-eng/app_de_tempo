@@ -120,6 +120,30 @@
     applyTheme(currentTheme);
   });
 
+  /* ---------------- VERSÃO (gatilho oculto) ---------------- */
+  const APP_VERSION = "1.0";
+  const brandMarkBtn = document.getElementById("brand-mark-btn");
+  const brandVersion = document.getElementById("brand-version");
+  let versionTapCount = 0;
+  let versionTapTimer = null;
+
+  brandVersion.textContent = `v${APP_VERSION}`;
+
+  brandMarkBtn.addEventListener("click", () => {
+    versionTapCount++;
+    clearTimeout(versionTapTimer);
+    versionTapTimer = setTimeout(() => { versionTapCount = 0; }, 1500);
+
+    if(versionTapCount >= 5){
+      versionTapCount = 0;
+      brandVersion.classList.remove("hidden");
+      clearTimeout(brandVersion._hideTimer);
+      brandVersion._hideTimer = setTimeout(() => {
+        brandVersion.classList.add("hidden");
+      }, 4000);
+    }
+  });
+
   /* ---------------- TABS ---------------- */
   const tabBtns = document.querySelectorAll(".tab-btn");
   const screens = document.querySelectorAll(".screen");
@@ -557,6 +581,23 @@
     };
     reader.readAsText(file);
     importFileInput.value = "";
+  });
+
+  /* ---------------- ZONA DE RISCO ---------------- */
+  const btnResetAll = document.getElementById("btn-reset-all");
+
+  btnResetAll.addEventListener("click", () => {
+    const step1 = confirm("Apagar TODOS os dados (perfil, configuração e histórico)? Essa ação não pode ser desfeita.");
+    if(!step1) return;
+    const step2 = confirm("Tem certeza mesmo? Não vai dar pra recuperar depois.");
+    if(!step2) return;
+
+    localStorage.removeItem(CONFIG_KEY);
+    localStorage.removeItem(RECORDS_KEY);
+    localStorage.removeItem(PROFILE_KEY);
+    localStorage.removeItem(TIMER_STATE_KEY);
+    localStorage.removeItem(THEME_KEY);
+    location.reload();
   });
 
   /* ---------------- INIT ---------------- */

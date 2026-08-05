@@ -104,6 +104,19 @@ input, select{
 .brand-mark{
   color:var(--amber);
   font-size:10px;
+  padding:6px;
+  margin:-6px;
+  line-height:1;
+}
+.brand-version{
+  font-family:var(--font-mono);
+  font-size:10px;
+  color:var(--text-faint);
+  background:var(--ink-2);
+  border:1px solid var(--card-line);
+  padding:2px 6px;
+  border-radius:6px;
+  animation:fadeIn .2s ease;
 }
 .brand-name{
   font-family:var(--font-mono);
@@ -550,6 +563,20 @@ input, select{
 .backup-row .btn-secondary{
   flex:1;
   text-align:center;
+}
+
+.danger-panel{
+  border-color:rgba(226,87,76,0.35);
+}
+.danger-panel .panel-title{
+  color:var(--red);
+}
+.btn-danger-full{
+  width:100%;
+  padding:14px;
+  border-radius:12px;
+  font-weight:800;
+  font-size:14px;
 }
 
 /* ---------- polimento geral ---------- */
