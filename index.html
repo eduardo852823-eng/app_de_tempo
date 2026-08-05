@@ -4,6 +4,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Ponto — Controle de Horas</title>
+
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#14171c" id="meta-theme-color">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Ponto">
+
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -20,6 +29,9 @@
         <img id="brand-user-photo" class="hidden" alt="">
         <span id="brand-user-name"></span>
       </span>
+      <button class="theme-toggle" id="theme-toggle" type="button" title="Alternar tema" aria-label="Alternar tema">
+        <span id="theme-toggle-icon">☾</span>
+      </button>
     </div>
     <nav class="tabs">
       <button class="tab-btn active" data-tab="timer">Trabalhar</button>
@@ -124,6 +136,17 @@
       <button class="btn-primary" id="btn-save-config">Salvar configuração</button>
       <div class="save-confirm hidden" id="save-confirm">Configuração salva ✓</div>
     </section>
+
+    <section class="panel">
+      <div class="panel-title">Backup</div>
+      <p class="backup-hint">Guarde uma cópia dos seus dados (perfil, configuração e histórico) ou restaure de um arquivo salvo antes.</p>
+      <div class="backup-row">
+        <button class="btn-secondary" id="btn-export">Exportar backup</button>
+        <button class="btn-secondary" id="btn-import">Importar backup</button>
+      </div>
+      <input type="file" id="import-file-input" accept="application/json" class="hidden">
+      <div class="save-confirm hidden" id="import-confirm">Backup restaurado ✓</div>
+    </section>
   </main>
 
 </div>
@@ -131,5 +154,12 @@
 <audio id="alarm-sound" preload="auto"></audio>
 
 <script src="script.js"></script>
+<script>
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("service-worker.js").catch(() => {});
+    });
+  }
+</script>
 </body>
 </html>

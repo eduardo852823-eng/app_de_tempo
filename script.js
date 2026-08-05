@@ -86,6 +86,31 @@
     return count;
   }
 
+  /* ---------------- TEMA ---------------- */
+  const THEME_KEY = "ponto_theme_v1";
+  const themeToggle = document.getElementById("theme-toggle");
+  const themeToggleIcon = document.getElementById("theme-toggle-icon");
+  const metaThemeColor = document.getElementById("meta-theme-color");
+
+  function applyTheme(theme){
+    document.documentElement.setAttribute("data-theme", theme);
+    themeToggleIcon.textContent = theme === "light" ? "☀" : "☾";
+    metaThemeColor.setAttribute("content", theme === "light" ? "#eef0f3" : "#14171c");
+  }
+
+  function loadTheme(){
+    return localStorage.getItem(THEME_KEY) || "dark";
+  }
+
+  let currentTheme = loadTheme();
+  applyTheme(currentTheme);
+
+  themeToggle.addEventListener("click", () => {
+    currentTheme = currentTheme === "light" ? "dark" : "light";
+    localStorage.setItem(THEME_KEY, currentTheme);
+    applyTheme(currentTheme);
+  });
+
   /* ---------------- TABS ---------------- */
   const tabBtns = document.querySelectorAll(".tab-btn");
   const screens = document.querySelectorAll(".screen");
@@ -253,6 +278,13 @@
       localStorage.removeItem(TIMER_STATE_KEY);
       stopTicking();
       updateEarningsPanel();
+    }
+  });
+
+  window.addEventListener("beforeunload", (e) => {
+    if(startTimestamp !== null){
+      e.preventDefault();
+      e.returnValue = "";
     }
   });
 
@@ -454,6 +486,57 @@
       `;
     }).join("");
   }
+
+  /* ---------------- BACKUP ---------------- */
+  const btnExport = document.getElementById("btn-export");
+  const btnImport = document.getElementById("btn-import");
+  const importFileInput = document.getElementById("import-file-input");
+  const importConfirm = document.getElementById("import-confirm");
+
+  btnExport.addEventListener("click", () => {
+    const payload = {
+      exportedAt: new Date().toISOString(),
+      config, records, profile
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const stamp = todayISO();
+    a.href = url;
+    a.download = `ponto-backup-${stamp}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  });
+
+  btnImport.addEventListener("click", () => importFileInput.click());
+
+  importFileInput.addEventListener("change", () => {
+    const file = importFileInput.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try{
+        const data = JSON.parse(reader.result);
+        if(data.config) { config = data.config; saveConfig(config); }
+        if(Array.isArray(data.records)) { records = data.records; saveRecords(records); }
+        if(data.profile) { profile = data.profile; saveProfile(profile); }
+
+        renderProfile();
+        renderConfigForm();
+        updateEarningsPanel();
+        renderHistory();
+
+        importConfirm.classList.remove("hidden");
+        setTimeout(()=>importConfirm.classList.add("hidden"), 2500);
+      }catch(e){
+        alert("Não foi possível ler esse arquivo de backup.");
+      }
+    };
+    reader.readAsText(file);
+    importFileInput.value = "";
+  });
 
   /* ---------------- INIT ---------------- */
   renderProfile();

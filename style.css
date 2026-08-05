@@ -17,6 +17,20 @@
   --font-sans: 'Manrope', sans-serif;
 }
 
+:root[data-theme="light"]{
+  --ink:        #eef0f3;
+  --ink-2:      #ffffff;
+  --card:       #ffffff;
+  --card-line:  #dde1e7;
+  --amber:      #c97c1f;
+  --amber-dim:  #e8c493;
+  --green:      #2f9e63;
+  --red:        #c8443a;
+  --text:       #1b1f26;
+  --text-dim:   #5c6470;
+  --text-faint: #99a0ac;
+}
+
 *{ box-sizing:border-box; }
 
 html,body{
@@ -26,6 +40,7 @@ html,body{
   color:var(--text);
   font-family:var(--font-sans);
   -webkit-font-smoothing:antialiased;
+  transition:background .25s ease, color .25s ease;
 }
 
 button{
@@ -111,6 +126,22 @@ input, select{
   font-size:12px;
   font-weight:700;
   color:var(--text-dim);
+}
+.theme-toggle{
+  width:30px;
+  height:30px;
+  min-width:30px;
+  border-radius:50%;
+  background:var(--ink-2);
+  border:1px solid var(--card-line);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:14px;
+  transition:background .2s ease, transform .2s ease;
+}
+.theme-toggle:active{
+  transform:scale(0.9);
 }
 
 .tabs{
@@ -490,6 +521,48 @@ input, select{
   font-weight:700;
   color:var(--amber);
   font-size:14px;
+}
+
+.backup-hint{
+  font-size:12.5px;
+  color:var(--text-dim);
+  line-height:1.5;
+  margin:0 0 16px;
+}
+.backup-row{
+  display:flex;
+  gap:10px;
+}
+.backup-row .btn-secondary{
+  flex:1;
+  text-align:center;
+}
+
+/* ---------- polimento geral ---------- */
+.panel{
+  transition:border-color .25s ease, background .25s ease;
+}
+.clock-btn:hover{
+  box-shadow:0 0 0 9px rgba(242,169,59,0.16);
+}
+.clock-btn.running:hover{
+  box-shadow:0 0 0 9px rgba(226,87,76,0.18);
+}
+.tab-btn:hover{
+  color:var(--text-dim);
+}
+.tab-btn.active:hover{
+  color:var(--amber);
+}
+.btn-secondary:hover, .btn-primary:hover, .weekday-btn:hover, .profile-photo:hover{
+  filter:brightness(1.08);
+}
+.btn-primary:active, .btn-secondary:active{
+  transform:scale(0.98);
+}
+input:focus, select:focus, .weekday-btn:focus-visible, button:focus-visible{
+  outline:2px solid var(--amber);
+  outline-offset:2px;
 }
 
 @media (max-width:380px){
