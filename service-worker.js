@@ -1,4 +1,4 @@
-const CACHE_NAME = "ponto-cache-v2";
+const CACHE_NAME = "ponto-cache-v1.1";
 const APP_SHELL = [
   "./index.html",
   "./style.css",

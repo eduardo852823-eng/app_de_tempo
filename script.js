@@ -53,8 +53,15 @@
   function pad(n){ return String(n).padStart(2,"0"); }
 
   function todayISO(){
-    const d = new Date();
+    return isoFromTimestamp(Date.now());
+  }
+  function isoFromTimestamp(ts){
+    const d = new Date(ts);
     return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  }
+  function timeFromTimestamp(ts){
+    const d = new Date(ts);
+    return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
   }
   function monthKeyOf(iso){ return iso.slice(0,7); } // YYYY-MM
   function currentMonthKey(){ return monthKeyOf(todayISO()); }
@@ -121,7 +128,7 @@
   });
 
   /* ---------------- VERSÃO (gatilho oculto) ---------------- */
-  const APP_VERSION = "1.0";
+  const APP_VERSION = "1.1";
   const brandMarkBtn = document.getElementById("brand-mark-btn");
   const brandVersion = document.getElementById("brand-version");
   let versionTapCount = 0;
@@ -302,11 +309,20 @@
       beginTicking();
     } else {
       // finalizar e salvar
-      const elapsedSeconds = Math.floor((Date.now() - startTimestamp)/1000);
+      const endTimestamp = Date.now();
+      const elapsedSeconds = Math.floor((endTimestamp - startTimestamp)/1000);
       if(elapsedSeconds > 0){
-        const dateISO = todayISO();
+        // usa a data do INÍCIO do turno (corrige o registro indo pro dia errado
+        // quando o cronômetro cruza a meia-noite)
+        const dateISO = isoFromTimestamp(startTimestamp);
         const rate = hourlyRateForMonth(monthKeyOf(dateISO), config);
-        records.push({ date: dateISO, seconds: elapsedSeconds, rate });
+        records.push({
+          date: dateISO,
+          seconds: elapsedSeconds,
+          rate,
+          startTime: startTimestamp,
+          endTime: endTimestamp
+        });
         saveRecords(records);
       }
       startTimestamp = null;
@@ -486,10 +502,13 @@
   function renderMonthDetails(monthKey){
     const monthRecords = records.filter(r => monthKeyOf(r.date) === monthKey);
 
-    // agrupar por dia
+    // agrupar por dia (total de segundos + lista de turnos com horário)
     const byDay = {};
+    const sessionsByDay = {};
     monthRecords.forEach(r => {
       byDay[r.date] = (byDay[r.date] || 0) + r.seconds;
+      if(!sessionsByDay[r.date]) sessionsByDay[r.date] = [];
+      sessionsByDay[r.date].push(r);
     });
     const days = Object.keys(byDay).sort().reverse();
 
@@ -520,13 +539,30 @@
       const [yy,mm,dd] = dateISO.split("-").map(Number);
       const dObj = new Date(yy, mm-1, dd);
       const weekday = WEEKDAY_NAMES[dObj.getDay()];
+
+      // turnos do dia, do mais antigo pro mais recente, com horário de início/fim
+      const sessions = (sessionsByDay[dateISO] || [])
+        .slice()
+        .sort((a,b) => (a.startTime||0) - (b.startTime||0));
+
+      const rangesHtml = sessions.map(s => {
+        if(typeof s.startTime === "number" && typeof s.endTime === "number"){
+          return `<span class="ticket-range">${timeFromTimestamp(s.startTime)} – ${timeFromTimestamp(s.endTime)}</span>`;
+        }
+        // registros antigos, sem horário salvo
+        return `<span class="ticket-range">${formatHoursMinutes(s.seconds)}</span>`;
+      }).join("");
+
       return `
         <div class="ticket">
           <div class="ticket-date">
             <span class="ticket-day">${pad(dd)}/${pad(mm)}</span>
             <span class="ticket-weekday">${weekday}</span>
           </div>
-          <span class="ticket-hours">${formatHoursMinutes(byDay[dateISO])}</span>
+          <div class="ticket-info">
+            <span class="ticket-hours">${formatHoursMinutes(byDay[dateISO])}</span>
+            <div class="ticket-ranges">${rangesHtml}</div>
+          </div>
         </div>
       `;
     }).join("");
