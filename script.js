@@ -52,6 +52,16 @@
   }
   function saveRecords(records){
     safeSetItem(RECORDS_KEY, JSON.stringify(records));
+    warnIfRecordsGrowingTooMuch(records);
+  }
+  const RECORDS_WARN_THRESHOLD = 3000;
+  let recordsSizeWarned = false;
+  function warnIfRecordsGrowingTooMuch(records){
+    if(recordsSizeWarned) return;
+    if(records.length >= RECORDS_WARN_THRESHOLD){
+      recordsSizeWarned = true;
+      alert("Seu histórico já tem muitos registros. Vale exportar um backup e, se quiser, apagar dados antigos na aba Configurar > Zona de risco, pra evitar que o app fique lento ou o armazenamento estoure.");
+    }
   }
   // filtra qualquer registro sem o formato mínimo esperado (protege contra backup corrompido)
   function sanitizeRecords(arr){
@@ -116,6 +126,7 @@
     return `${pad(h)}:${pad(m)}:${pad(s)}`;
   }
   function formatHoursMinutes(totalSeconds){
+    if(totalSeconds < 60) return `${Math.round(totalSeconds)}s`;
     const h = Math.floor(totalSeconds/3600);
     const m = Math.round((totalSeconds%3600)/60);
     return `${h}h ${pad(m)}m`;
@@ -171,7 +182,7 @@
   });
 
   /* ---------------- VERSÃO (gatilho oculto) ---------------- */
-  const APP_VERSION = "1.2";
+  const APP_VERSION = "1.3";
   const brandMarkBtn = document.getElementById("brand-mark-btn");
   const brandVersion = document.getElementById("brand-version");
   let versionTapCount = 0;
@@ -480,6 +491,7 @@
   const breakIdle = document.getElementById("break-idle");
   const breakActive = document.getElementById("break-active");
   const breakMinutesInput = document.getElementById("break-minutes");
+  const breakSecondsInput = document.getElementById("break-seconds");
   const breakCountdown = document.getElementById("break-countdown");
   const btnBreakStart = document.getElementById("btn-break-start");
   const btnBreakCancel = document.getElementById("btn-break-cancel");
@@ -493,6 +505,7 @@
 
   function playBeep(){
     if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if(audioCtx.state === "suspended") audioCtx.resume();
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
     osc.type = "square";
@@ -505,9 +518,11 @@
   }
 
   function startBreak(){
-    const minutes = parseFloat(breakMinutesInput.value);
-    if(!minutes || minutes <= 0) return;
-    breakEndTimestamp = Date.now() + minutes*60*1000;
+    const minutes = Math.max(0, parseFloat(breakMinutesInput.value) || 0);
+    const seconds = Math.max(0, Math.min(59, parseFloat(breakSecondsInput.value) || 0));
+    const totalSeconds = Math.round(minutes*60 + seconds);
+    if(totalSeconds <= 0) return;
+    breakEndTimestamp = Date.now() + totalSeconds*1000;
     breakIdle.classList.add("hidden");
     breakActive.classList.remove("hidden");
     tickBreak();
@@ -556,6 +571,7 @@
     if(document.visibilityState === "visible"){
       if(startTimestamp !== null) tick();
       if(breakInterval !== null && breakEndTimestamp !== null) tickBreak();
+      if(alarmRinging && audioCtx && audioCtx.state === "suspended") audioCtx.resume();
     }
   });
 
@@ -671,7 +687,8 @@
   btnExport.addEventListener("click", () => {
     const payload = {
       exportedAt: new Date().toISOString(),
-      config, records, profile
+      config, records, profile,
+      theme: currentTheme
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -706,6 +723,11 @@
           };
           saveProfile(profile);
         }
+        if(data.theme === "light" || data.theme === "dark"){
+          currentTheme = data.theme;
+          localStorage.setItem(THEME_KEY, currentTheme);
+          applyTheme(currentTheme);
+        }
 
         renderProfile();
         renderConfigForm();
@@ -738,6 +760,45 @@
     localStorage.removeItem(TIMER_STATE_KEY);
     localStorage.removeItem(THEME_KEY);
     location.reload();
+  });
+
+  // sincroniza entre abas/janelas: se outra aba iniciar, finalizar o cronômetro
+  // ou mudar config/registros, esta aba reflete o estado em vez de ficar desatualizada
+  window.addEventListener("storage", (e) => {
+    if(e.key === TIMER_STATE_KEY){
+      if(e.newValue === null){
+        // outra aba finalizou o turno
+        if(startTimestamp !== null){
+          startTimestamp = null;
+          stopTicking();
+        }
+      } else {
+        try{
+          const state = JSON.parse(e.newValue);
+          if(state && typeof state.startTimestamp === "number" && state.startTimestamp !== startTimestamp){
+            startTimestamp = state.startTimestamp;
+            beginTicking();
+          }
+        }catch(err){}
+      }
+      records = loadRecords();
+      updateEarningsPanel();
+    }
+    if(e.key === RECORDS_KEY){
+      records = loadRecords();
+      updateEarningsPanel();
+      if(document.getElementById("screen-historico").classList.contains("active")) renderHistory();
+    }
+    if(e.key === CONFIG_KEY){
+      config = loadConfig();
+      renderConfigForm();
+      updateEarningsPanel();
+      updateClockAvailability();
+    }
+    if(e.key === PROFILE_KEY){
+      profile = loadProfile();
+      renderProfile();
+    }
   });
 
   /* ---------------- INIT ---------------- */

@@ -336,14 +336,16 @@ input, select{
   gap:10px;
   align-items:center;
 }
-#break-minutes{
+#break-minutes, #break-seconds{
   flex:1;
+  min-width:0;
   background:var(--ink-2);
   border:1px solid var(--card-line);
   border-radius:10px;
   padding:12px;
   color:var(--text);
   font-size:14px;
+  text-align:center;
 }
 .btn-secondary{
   background:var(--ink-2);

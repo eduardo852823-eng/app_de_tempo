@@ -77,7 +77,8 @@
     <section class="panel break-panel">
       <div class="panel-title">Intervalo</div>
       <div class="break-row" id="break-idle">
-        <input type="number" id="break-minutes" placeholder="Minutos" min="1" value="15">
+        <input type="number" id="break-minutes" placeholder="Min" min="0" value="15">
+        <input type="number" id="break-seconds" placeholder="Seg" min="0" max="59" value="0">
         <button class="btn-secondary" id="btn-break-start">Iniciar intervalo</button>
       </div>
       <div class="break-row hidden" id="break-active">
