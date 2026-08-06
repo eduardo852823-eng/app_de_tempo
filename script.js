@@ -10,25 +10,64 @@
     try{
       const raw = localStorage.getItem(CONFIG_KEY);
       if(!raw) return { salary: 0, hoursPerDay: 0, workDays: [1,2,3,4,5] };
-      return JSON.parse(raw);
+      return sanitizeConfig(JSON.parse(raw));
     }catch(e){
       return { salary: 0, hoursPerDay: 0, workDays: [1,2,3,4,5] };
     }
   }
+  function safeSetItem(key, value){
+    try{
+      localStorage.setItem(key, value);
+      return true;
+    }catch(e){
+      alert("Não foi possível salvar: o armazenamento do dispositivo está cheio. Tente remover fotos de perfil grandes ou exportar/limpar o histórico antigo.");
+      return false;
+    }
+  }
   function saveConfig(cfg){
-    localStorage.setItem(CONFIG_KEY, JSON.stringify(cfg));
+    safeSetItem(CONFIG_KEY, JSON.stringify(cfg));
+  }
+  // garante números válidos e não-negativos, e workDays só com 0-6 sem duplicar
+  function sanitizeConfig(cfg){
+    cfg = cfg || {};
+    const salary = Math.max(0, Number(cfg.salary) || 0);
+    const hoursPerDay = Math.max(0, Number(cfg.hoursPerDay) || 0);
+    const workDays = Array.isArray(cfg.workDays)
+      ? [...new Set(cfg.workDays.map(Number).filter(d => Number.isInteger(d) && d>=0 && d<=6))]
+      : [];
+    return { salary, hoursPerDay, workDays };
+  }
+  // config completa o bastante pra calcular valor/hora (precisa pra começar a bater ponto)
+  function isConfigComplete(cfg){
+    return !!cfg && cfg.salary > 0 && cfg.hoursPerDay > 0 && Array.isArray(cfg.workDays) && cfg.workDays.length > 0;
   }
   function loadRecords(){
     try{
       const raw = localStorage.getItem(RECORDS_KEY);
       if(!raw) return [];
-      return JSON.parse(raw);
+      return sanitizeRecords(JSON.parse(raw));
     }catch(e){
       return [];
     }
   }
   function saveRecords(records){
-    localStorage.setItem(RECORDS_KEY, JSON.stringify(records));
+    safeSetItem(RECORDS_KEY, JSON.stringify(records));
+  }
+  // filtra qualquer registro sem o formato mínimo esperado (protege contra backup corrompido)
+  function sanitizeRecords(arr){
+    if(!Array.isArray(arr)) return [];
+    const dateRe = /^\d{4}-\d{2}-\d{2}$/;
+    return arr.filter(r =>
+      r && typeof r === "object" &&
+      typeof r.date === "string" && dateRe.test(r.date) &&
+      typeof r.seconds === "number" && isFinite(r.seconds) && r.seconds >= 0
+    ).map(r => ({
+      date: r.date,
+      seconds: r.seconds,
+      rate: typeof r.rate === "number" && isFinite(r.rate) ? r.rate : undefined,
+      startTime: typeof r.startTime === "number" ? r.startTime : undefined,
+      endTime: typeof r.endTime === "number" ? r.endTime : undefined
+    }));
   }
 
   const PROFILE_KEY = "ponto_profile_v1";
@@ -36,13 +75,17 @@
     try{
       const raw = localStorage.getItem(PROFILE_KEY);
       if(!raw) return { name: "", photo: "" };
-      return JSON.parse(raw);
+      const p = JSON.parse(raw);
+      return {
+        name: typeof p.name === "string" ? p.name : "",
+        photo: typeof p.photo === "string" ? p.photo : ""
+      };
     }catch(e){
       return { name: "", photo: "" };
     }
   }
   function saveProfile(p){
-    localStorage.setItem(PROFILE_KEY, JSON.stringify(p));
+    safeSetItem(PROFILE_KEY, JSON.stringify(p));
   }
 
   let config = loadConfig();
@@ -128,7 +171,7 @@
   });
 
   /* ---------------- VERSÃO (gatilho oculto) ---------------- */
-  const APP_VERSION = "1.1";
+  const APP_VERSION = "1.2";
   const brandMarkBtn = document.getElementById("brand-mark-btn");
   const brandVersion = document.getElementById("brand-version");
   let versionTapCount = 0;
@@ -196,6 +239,12 @@
   profilePhotoInput.addEventListener("change", () => {
     const file = profilePhotoInput.files[0];
     if(!file) return;
+    const MAX_PHOTO_BYTES = 2 * 1024 * 1024; // 2MB
+    if(file.size > MAX_PHOTO_BYTES){
+      alert("Essa foto é muito grande (máx. 2MB). Escolha uma imagem menor.");
+      profilePhotoInput.value = "";
+      return;
+    }
     const reader = new FileReader();
     reader.onload = () => {
       profile.photo = reader.result;
@@ -234,20 +283,27 @@
     });
   });
 
+  [inputSalary, inputHoursDay].forEach(inp => {
+    inp.addEventListener("input", () => {
+      if(inp.value !== "" && Number(inp.value) < 0) inp.value = 0;
+    });
+  });
+
   btnSaveConfig.addEventListener("click", () => {
     const selectedDays = [...weekdayBtns]
       .filter(b=>b.classList.contains("selected"))
       .map(b=>Number(b.dataset.day));
 
-    config = {
-      salary: parseFloat(inputSalary.value) || 0,
-      hoursPerDay: parseFloat(inputHoursDay.value) || 0,
+    config = sanitizeConfig({
+      salary: inputSalary.value,
+      hoursPerDay: inputHoursDay.value,
       workDays: selectedDays
-    };
+    });
     saveConfig(config);
     saveConfirm.classList.remove("hidden");
     setTimeout(()=>saveConfirm.classList.add("hidden"), 2000);
     updateEarningsPanel();
+    updateClockAvailability();
   });
 
   /* ---------------- CRONÔMETRO ---------------- */
@@ -266,11 +322,21 @@
     if(!raw) return;
     try{
       const state = JSON.parse(raw);
-      if(state && state.startTimestamp){
+      const MAX_SESSION_MS = 24 * 60 * 60 * 1000; // 24h
+      if(state && typeof state.startTimestamp === "number"){
+        const age = Date.now() - state.startTimestamp;
+        // descarta timer travado no localStorage: no futuro, ou rodando há mais de 24h
+        // (provavelmente esqueceram de finalizar, ou o relógio do aparelho mudou)
+        if(age < 0 || age > MAX_SESSION_MS){
+          localStorage.removeItem(TIMER_STATE_KEY);
+          return;
+        }
         startTimestamp = state.startTimestamp;
         beginTicking();
       }
-    }catch(e){}
+    }catch(e){
+      localStorage.removeItem(TIMER_STATE_KEY);
+    }
   }
 
   function beginTicking(){
@@ -285,7 +351,7 @@
   }
 
   function tick(){
-    const elapsed = Math.floor((Date.now() - startTimestamp)/1000);
+    const elapsed = Math.max(0, Math.floor((Date.now() - startTimestamp)/1000));
     clockDisplay.textContent = formatHMS(elapsed);
     updateEarningsPanel(elapsed);
   }
@@ -295,17 +361,36 @@
     timerInterval = null;
     clockDisplay.classList.remove("running");
     clockStatus.classList.remove("running");
-    clockStatus.textContent = "Pronto para começar";
     btnToggle.classList.remove("running");
     btnToggleLabel.textContent = "Iniciar";
     clockDisplay.textContent = "00:00:00";
+    updateClockAvailability();
+  }
+
+  function updateClockAvailability(){
+    if(startTimestamp !== null) return; // não mexe se já estiver rodando
+    if(isConfigComplete(config)){
+      clockStatus.textContent = "Pronto para começar";
+    } else {
+      clockStatus.textContent = "Configure salário e dias pra começar";
+    }
   }
 
   btnToggle.addEventListener("click", () => {
     if(startTimestamp === null){
-      // iniciar
+      // iniciar — só permite se salário, horas/dia e dias da semana já estiverem configurados
+      if(!isConfigComplete(config)){
+        alert("Antes de começar, preencha salário mensal, horas por dia e os dias que você trabalha na aba Configurar.");
+        tabBtns.forEach(b=>b.classList.remove("active"));
+        screens.forEach(s=>s.classList.remove("active"));
+        const configTabBtn = document.querySelector('.tab-btn[data-tab="config"]');
+        configTabBtn.classList.add("active");
+        document.getElementById("screen-config").classList.add("active");
+        renderConfigForm();
+        return;
+      }
       startTimestamp = Date.now();
-      localStorage.setItem(TIMER_STATE_KEY, JSON.stringify({ startTimestamp }));
+      safeSetItem(TIMER_STATE_KEY, JSON.stringify({ startTimestamp }));
       beginTicking();
     } else {
       // finalizar e salvar
@@ -465,6 +550,15 @@
   btnBreakStart.addEventListener("click", startBreak);
   btnBreakCancel.addEventListener("click", stopAlarmAndReset);
 
+  // quando o app volta do background, recalcula o intervalo na hora
+  // (o setInterval pode ter sido pausado pelo navegador economizando bateria)
+  document.addEventListener("visibilitychange", () => {
+    if(document.visibilityState === "visible"){
+      if(startTimestamp !== null) tick();
+      if(breakInterval !== null && breakEndTimestamp !== null) tickBreak();
+    }
+  });
+
   /* ---------------- HISTÓRICO ---------------- */
   const monthSelect = document.getElementById("month-select");
   const monthSummary = document.getElementById("month-summary");
@@ -600,19 +694,29 @@
     reader.onload = () => {
       try{
         const data = JSON.parse(reader.result);
-        if(data.config) { config = data.config; saveConfig(config); }
-        if(Array.isArray(data.records)) { records = data.records; saveRecords(records); }
-        if(data.profile) { profile = data.profile; saveProfile(profile); }
+        if(typeof data !== "object" || data === null){
+          throw new Error("formato inválido");
+        }
+        if(data.config) { config = sanitizeConfig(data.config); saveConfig(config); }
+        if(Array.isArray(data.records)) { records = sanitizeRecords(data.records); saveRecords(records); }
+        if(data.profile && typeof data.profile === "object") {
+          profile = {
+            name: typeof data.profile.name === "string" ? data.profile.name : "",
+            photo: typeof data.profile.photo === "string" ? data.profile.photo : ""
+          };
+          saveProfile(profile);
+        }
 
         renderProfile();
         renderConfigForm();
         updateEarningsPanel();
+        updateClockAvailability();
         renderHistory();
 
         importConfirm.classList.remove("hidden");
         setTimeout(()=>importConfirm.classList.add("hidden"), 2500);
       }catch(e){
-        alert("Não foi possível ler esse arquivo de backup.");
+        alert("Não foi possível ler esse arquivo de backup. Verifique se é um backup válido do Ponto.");
       }
     };
     reader.readAsText(file);
@@ -640,6 +744,7 @@
   renderProfile();
   renderConfigForm();
   updateEarningsPanel();
+  updateClockAvailability();
   restoreRunningTimer();
 
   // mantém o painel de ganhos atualizado mesmo parado (ex: virar o mês)
